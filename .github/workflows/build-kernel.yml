@@ -65,10 +65,16 @@ jobs:
           # clang 19.0.0 from tag android-16.0.0_r1; fetch it from
           # the AOSP git mirror (no auth needed). Verified against
           # the local build's clang-16r1 (same version string).
+          # The AOSP repo root holds one directory PER clang version
+          # (clang-r530567/, clang-r547379/, ...); the binaries live
+          # at <version>/bin/clang, NOT at the repo root. Verified
+          # via gitiles: clang-r530567/bin/clang exists (200) at
+          # tag android-16.0.0_r1, bin/clang at the root 404s.
           git clone --depth 1 --branch android-16.0.0_r1 \
             https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86 \
             clang-r530567
-          ./clang-r530567/bin/clang --version | head -1
+          test -x ./clang-r530567/clang-r530567/bin/clang
+          ./clang-r530567/clang-r530567/bin/clang --version | head -1
 
       - name: Fetch GCC 4.9 cross (aarch64-linux-android)
         run: |
@@ -80,14 +86,17 @@ jobs:
       - name: Configure (stock miatoll_defconfig, LTO already on)
         run: |
           cd kernel
-          make O=out ARCH=arm64 miatoll_defconfig
+          # The defconfig is NOT arch/arm64/configs/miatoll_defconfig
+          # (that path does not exist); it lives at
+          # arch/arm64/configs/vendor/xiaomi/miatoll_defconfig.
+          make O=out ARCH=arm64 vendor/xiaomi/miatoll_defconfig
           grep -E 'CONFIG_LTO|CONFIG_LOCALVERSION=|CONFIG_TOUCHSCREEN_FTS_SPI=' out/.config
 
       - name: Build kernel (ThinLTO ON)
         run: |
           cd kernel
           export ARCH=arm64
-          export PATH="$GITHUB_WORKSPACE/clang-r530567/bin:$GITHUB_WORKSPACE/gcc/bin:$PATH"
+          export PATH="$GITHUB_WORKSPACE/clang-r530567/clang-r530567/bin:$GITHUB_WORKSPACE/gcc/bin:$PATH"
           export CROSS_COMPILE=aarch64-linux-android-
           export CLANG_TRIPLE=aarch64-linux-gnu-
           make O=out CC=clang LLVM_IAS=1 LD=ld.lld AR=llvm-ar NM=llvm-nm \
