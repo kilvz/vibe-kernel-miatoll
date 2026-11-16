@@ -1,14 +1,16 @@
 # Build the miatoll (Redmi Note 9 Pro / joyeuse) kernel with the FT8756
 # touch fix, with ThinLTO ON, on GitHub Actions.
 #
-# ROOT BRANCH: this is the APatch-pre-patched variant. After the build
-# it patches the kernel Image with KernelPatch kpimg 0.13.9 (the same
-# patch the APatch app applies to a boot.img, no custom superkey --
-# matches a stock APatch install). Flashing this kernel keeps root:
-# the APatch manager app works immediately, no re-patch needed.
-# Verified locally 2026-11-16: kpimg patches the ThinLTO Image cleanly
-# (it resolves the LTO-suffixed symbols copy_process.llvm.* etc.).
-# The clean (unpatched) kernel is built from the main branch.
+# DROIDSPACES BRANCH: this is the APatch-pre-patched variant (same as
+# the root branch) PLUS full DroidSpaces container support, per the
+# Droidspaces-OSS kernel guide for non-GKI kernels 3.18-4.19 (miatoll
+# is 4.14, non-GKI): the required config options are merged from
+# ci/droidspaces.config, and the non-GKI cgroup patch is applied.
+# Patch 01 (xt_qtaguid) is SKIPPED: net/netfilter/xt_qtaguid.c does
+# not exist in this tree (the driver was removed), so there is nothing
+# to patch; the panic it fixes cannot occur without the driver.
+# Patch 02 (cgroup file prefix) applies cleanly to the branch tip.
+# The clean kernel is built from main; the APatch-only kernel from root.
 #
 # Why CI: the ThinLTO final link needs more RAM than the 6 GB build VM
 # (OOM-killed, Error 137). A standard GitHub-hosted runner has 16 GB.
@@ -22,12 +24,12 @@
 # from the system package). The AnyKernel3 zip is uploaded as a
 # build artifact. The stock miatoll_defconfig already enables
 # CONFIG_LTO_CLANG=y (ThinLTO), so nothing about LTO is touched.
-name: Build miatoll kernel (FT8756 touch fix, ThinLTO, APatch-patched)
+name: Build miatoll kernel (FT8756 touch fix, ThinLTO, APatch, DroidSpaces)
 
 on:
   workflow_dispatch:
   push:
-    branches: [root]
+    branches: [droidspaces]
     paths:
       - 'ft8756-touch-fix.patch'
       - 'ci/**'
@@ -65,6 +67,17 @@ jobs:
           git apply ../ft8756-touch-fix.patch
           git status --short | head -20
 
+      - name: Apply DroidSpaces non-GKI patch
+        run: |
+          # Droidspaces-OSS non-GKI patch 02: restore cgroup file prefix
+          # handling (cgroup_add_file gains the subsys-prefixed symlink).
+          # Patch 01 (xt_qtaguid panic fix) is NOT applied: its file
+          # net/netfilter/xt_qtaguid.c does not exist in this tree.
+          cd kernel
+          git apply --check ../ci/droidspaces-02-cgroup-prefix.patch
+          git apply ../ci/droidspaces-02-cgroup-prefix.patch
+          git status --short | head -20
+
       - name: Fetch prebuilt clang-r530567 (AOSP android-16.0.0_r1)
         run: |
           # The LineageOS clang repo
@@ -92,14 +105,22 @@ jobs:
             gcc
           ls gcc/bin | head
 
-      - name: Configure (stock miatoll_defconfig, LTO already on)
+      - name: Configure (stock miatoll_defconfig + DroidSpaces options, LTO already on)
         run: |
           cd kernel
           # The defconfig is NOT arch/arm64/configs/miatoll_defconfig
           # (that path does not exist); it lives at
           # arch/arm64/configs/vendor/xiaomi/miatoll_defconfig.
           make O=out ARCH=arm64 vendor/xiaomi/miatoll_defconfig
+          # Merge the DroidSpaces config fragment (namespaces, cgroups,
+          # seccomp, netfilter/NAT, overlayfs, user namespaces, ...).
+          # merge_config.sh warns about options that do not exist on
+          # 4.14 (FW_LOADER_COMPRESS, CGROUP_NET_PRIO) -- harmless.
+          scripts/kconfig/merge_config.sh -m -O out out/.config ../ci/droidspaces.config
+          make O=out ARCH=arm64 olddefconfig
           grep -E 'CONFIG_LTO|CONFIG_LOCALVERSION=|CONFIG_TOUCHSCREEN_FTS_SPI=' out/.config
+          echo '--- DroidSpaces key options (must all be =y) ---'
+          grep -E 'CONFIG_NAMESPACES=|CONFIG_PID_NS=|CONFIG_UTS_NS=|CONFIG_IPC_NS=|CONFIG_CGROUP_NS=|CONFIG_USER_NS=|CONFIG_SECCOMP_FILTER=|CONFIG_MEMCG=|CONFIG_OVERLAY_FS=|CONFIG_DEVTMPFS=|CONFIG_NET_NS=|CONFIG_VETH=|CONFIG_MACVLAN=|CONFIG_CGROUP_PIDS=|CONFIG_CFS_BANDWIDTH=' out/.config
 
       - name: Build kernel (ThinLTO ON)
         run: |
@@ -141,16 +162,16 @@ jobs:
           cp kernel/out/arch/arm64/boot/Image ak3/Image
           cp ci/anykernel.sh ak3/anykernel.sh
           cd ak3
-          zip -r9 ../miatoll-ft8756-touchfix-lto-root.zip * -x .git/\*
+          zip -r9 ../miatoll-ft8756-touchfix-lto-droidspaces.zip * -x .git/\*
           cd ..
-          md5sum miatoll-ft8756-touchfix-lto-root.zip
-          ls -l miatoll-ft8756-touchfix-lto-root.zip
+          md5sum miatoll-ft8756-touchfix-lto-droidspaces.zip
+          ls -l miatoll-ft8756-touchfix-lto-droidspaces.zip
 
       - name: Upload AnyKernel3 zip
         uses: actions/upload-artifact@v4
         with:
-          name: miatoll-ft8756-touchfix-lto-root
-          path: miatoll-ft8756-touchfix-lto-root.zip
+          name: miatoll-ft8756-touchfix-lto-droidspaces
+          path: miatoll-ft8756-touchfix-lto-droidspaces.zip
           if-no-files-found: error
 
       - name: Upload build log
