@@ -1,0 +1,111 @@
+# Build the miatoll (Redmi Note 9 Pro / joyeuse) kernel with the FT8756
+# touch fix, with ThinLTO ON, on GitHub Actions.
+#
+# Why CI: the ThinLTO final link needs more RAM than the 6 GB build VM
+# (OOM-killed, Error 137). A standard GitHub-hosted runner has 16 GB.
+#
+# Layout: the repo holds ONLY this workflow + the patch + scripts.
+# The workflow clones the LineageOS kernel (lineage-22.2, pinned to the
+# commit the local build used), applies the patch, fetches the LOS
+# prebuilt clang-r530567 + GCC 4.9, and builds with the same flags as
+# the local build.sh (O=out, CC=clang, LD=ld.lld, LLVM_IAS=1, DTC
+# from the system package). The AnyKernel3 zip is uploaded as a
+# build artifact. The stock miatoll_defconfig already enables
+# CONFIG_LTO_CLANG=y (ThinLTO), so nothing about LTO is touched.
+name: Build miatoll kernel (FT8756 touch fix, ThinLTO)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, master]
+    paths:
+      - 'ft8756-touch-fix.patch'
+      - 'ci/**'
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 300
+    steps:
+      - name: Checkout this repo (patch + scripts)
+        uses: actions/checkout@v4
+
+      - name: Install build deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bc bison flex libssl-dev libelf-dev \
+            cpio device-tree-compiler lz4 git make python3
+
+      - name: Clone LineageOS kernel (lineage-22.2, pinned commit)
+        run: |
+          git clone --branch lineage-22.2 --single-branch \
+            https://github.com/LineageOS/android_kernel_xiaomi_sm6250.git kernel
+          cd kernel
+          git checkout b539bd164b67300498a4e985fa24de576a7b39ca
+          git rev-parse HEAD
+
+      - name: Apply FT8756 touch-fix patch
+        run: |
+          cd kernel
+          git apply --check ../ft8756-touch-fix.patch
+          git apply ../ft8756-touch-fix.patch
+          git status --short | head -20
+
+      - name: Fetch prebuilt clang-r530567 (LineageOS)
+        run: |
+          git clone --depth 1 \
+            https://github.com/LineageOS/android_prebuilts_clang_kernel_linux-x86_clang-r530567.git \
+            clang-r530567
+          ./clang-r530567/bin/clang --version | head -1
+
+      - name: Fetch GCC 4.9 cross (aarch64-linux-android)
+        run: |
+          git clone --depth 1 \
+            https://github.com/LineageOS/android_prebuilts_gcc_linux-x86_aarch64_aarch64-linux-android-4.9.git \
+            gcc
+          ls gcc/bin | head
+
+      - name: Configure (stock miatoll_defconfig, LTO already on)
+        run: |
+          cd kernel
+          make O=out ARCH=arm64 miatoll_defconfig
+          grep -E 'CONFIG_LTO|CONFIG_LOCALVERSION=|CONFIG_TOUCHSCREEN_FTS_SPI=' out/.config
+
+      - name: Build kernel (ThinLTO ON)
+        run: |
+          cd kernel
+          export ARCH=arm64
+          export PATH="$GITHUB_WORKSPACE/clang-r530567/bin:$GITHUB_WORKSPACE/gcc/bin:$PATH"
+          export CROSS_COMPILE=aarch64-linux-android-
+          export CLANG_TRIPLE=aarch64-linux-gnu-
+          make O=out CC=clang LLVM_IAS=1 LD=ld.lld AR=llvm-ar NM=llvm-nm \
+            STRIP=llvm-strip OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump \
+            DTC=/usr/bin/dtc -j"$(nproc)" 2>&1 | tee ../build.log
+          ls -l out/arch/arm64/boot/Image
+          file out/arch/arm64/boot/Image
+
+      - name: Package AnyKernel3 zip
+        run: |
+          git clone --depth 1 https://github.com/osm0sis/AnyKernel3.git ak3
+          cp kernel/out/arch/arm64/boot/Image ak3/Image
+          cp ci/anykernel.sh ak3/anykernel.sh
+          cd ak3
+          zip -r9 ../miatoll-ft8756-touchfix-lto.zip * -x .git/\*
+          cd ..
+          md5sum miatoll-ft8756-touchfix-lto.zip
+          ls -l miatoll-ft8756-touchfix-lto.zip
+
+      - name: Upload AnyKernel3 zip
+        uses: actions/upload-artifact@v4
+        with:
+          name: miatoll-ft8756-touchfix-lto
+          path: miatoll-ft8756-touchfix-lto.zip
+          if-no-files-found: error
+
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kernel-build-log
+          path: build.log
+          if-no-files-found: ignore
