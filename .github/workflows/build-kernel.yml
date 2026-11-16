@@ -38,10 +38,14 @@ jobs:
 
       - name: Clone LineageOS kernel (lineage-22.2, pinned commit)
         run: |
+          # The tarball commit b539bd1 is NOT in the public repo's
+          # history (the tarball was a snapshot, not a published
+          # commit) -- a --single-branch clone cannot check it out
+          # ('unable to read tree'). Use the branch tip instead and
+          # verify the patch still applies (git apply --check below).
           git clone --branch lineage-22.2 --single-branch \
             https://github.com/LineageOS/android_kernel_xiaomi_sm6250.git kernel
           cd kernel
-          git checkout b539bd164b67300498a4e985fa24de576a7b39ca
           git rev-parse HEAD
 
       - name: Apply FT8756 touch-fix patch
