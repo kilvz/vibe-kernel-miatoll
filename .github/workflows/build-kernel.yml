@@ -27,6 +27,8 @@ jobs:
   build:
     runs-on: ubuntu-24.04
     timeout-minutes: 300
+    permissions:
+      contents: write
     steps:
       - name: Checkout this repo (patch + scripts)
         uses: actions/checkout@v4
@@ -130,3 +132,16 @@ jobs:
           name: kernel-build-log
           path: build.log
           if-no-files-found: ignore
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="v1.0-lto"
+          TITLE="v1.0-lto — FT8756 touch fix, ThinLTO"
+          ZIP="miatoll-ft8756-touchfix-lto.zip"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "$ZIP" --clobber
+          else
+            gh release create "$TAG" "$ZIP" --title "$TITLE" --notes-file ci/release-notes.md
+          fi
