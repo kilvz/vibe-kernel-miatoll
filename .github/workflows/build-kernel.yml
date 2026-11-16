@@ -5,8 +5,9 @@
 # (OOM-killed, Error 137). A standard GitHub-hosted runner has 16 GB.
 #
 # Layout: the repo holds ONLY this workflow + the patch + scripts.
-# The workflow clones the LineageOS kernel (lineage-22.2, pinned to the
-# commit the local build used), applies the patch, fetches the LOS
+# The workflow clones the LineageOS kernel (lineage-22.2, branch tip --
+# the tarball commit b539bd1 the local build used is NOT in the public
+# repo's history, so it cannot be checked out), applies the patch,
 # prebuilt clang-r530567 + GCC 4.9, and builds with the same flags as
 # the local build.sh (O=out, CC=clang, LD=ld.lld, LLVM_IAS=1, DTC
 # from the system package). The AnyKernel3 zip is uploaded as a
@@ -36,7 +37,7 @@ jobs:
           sudo apt-get install -y bc bison flex libssl-dev libelf-dev \
             cpio device-tree-compiler lz4 git make python3
 
-      - name: Clone LineageOS kernel (lineage-22.2, pinned commit)
+      - name: Clone LineageOS kernel (lineage-22.2, branch tip)
         run: |
           # The tarball commit b539bd1 is NOT in the public repo's
           # history (the tarball was a snapshot, not a published
@@ -55,10 +56,17 @@ jobs:
           git apply ../ft8756-touch-fix.patch
           git status --short | head -20
 
-      - name: Fetch prebuilt clang-r530567 (LineageOS)
+      - name: Fetch prebuilt clang-r530567 (AOSP android-16.0.0_r1)
         run: |
-          git clone --depth 1 \
-            https://github.com/LineageOS/android_prebuilts_clang_kernel_linux-x86_clang-r530567.git \
+          # The LineageOS clang repo
+          # (android_prebuilts_clang_kernel_linux-x86_clang-r530567)
+          # does NOT exist -- its clone fails with 'could not read
+          # Username' (exit 128). The r530567 toolchain is the AOSP
+          # clang 19.0.0 from tag android-16.0.0_r1; fetch it from
+          # the AOSP git mirror (no auth needed). Verified against
+          # the local build's clang-16r1 (same version string).
+          git clone --depth 1 --branch android-16.0.0_r1 \
+            https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86 \
             clang-r530567
           ./clang-r530567/bin/clang --version | head -1
 
