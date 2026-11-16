@@ -1,6 +1,15 @@
 # Build the miatoll (Redmi Note 9 Pro / joyeuse) kernel with the FT8756
 # touch fix, with ThinLTO ON, on GitHub Actions.
 #
+# ROOT BRANCH: this is the APatch-pre-patched variant. After the build
+# it patches the kernel Image with KernelPatch kpimg 0.13.9 (the same
+# patch the APatch app applies to a boot.img, no custom superkey --
+# matches a stock APatch install). Flashing this kernel keeps root:
+# the APatch manager app works immediately, no re-patch needed.
+# Verified locally 2026-11-16: kpimg patches the ThinLTO Image cleanly
+# (it resolves the LTO-suffixed symbols copy_process.llvm.* etc.).
+# The clean (unpatched) kernel is built from the main branch.
+#
 # Why CI: the ThinLTO final link needs more RAM than the 6 GB build VM
 # (OOM-killed, Error 137). A standard GitHub-hosted runner has 16 GB.
 #
@@ -13,12 +22,12 @@
 # from the system package). The AnyKernel3 zip is uploaded as a
 # build artifact. The stock miatoll_defconfig already enables
 # CONFIG_LTO_CLANG=y (ThinLTO), so nothing about LTO is touched.
-name: Build miatoll kernel (FT8756 touch fix, ThinLTO)
+name: Build miatoll kernel (FT8756 touch fix, ThinLTO, APatch-patched)
 
 on:
   workflow_dispatch:
   push:
-    branches: [main, master]
+    branches: [root]
     paths:
       - 'ft8756-touch-fix.patch'
       - 'ci/**'
@@ -105,22 +114,43 @@ jobs:
           ls -l out/arch/arm64/boot/Image
           file out/arch/arm64/boot/Image
 
+      - name: Patch kernel with APatch (kpimg 0.13.9)
+        run: |
+          # Pre-patch the built Image with KernelPatch so flashing
+          # this kernel keeps root (no re-patch with the APatch app
+          # needed afterwards). No custom superkey: matches a stock
+          # APatch install (Custom SuperKey OFF). kptools-linux is
+          # the x86-64 CLI; kpimg-linux is the patch image blob
+          # (NOT an executable -- it is the -k input). The patch
+          # resolves LTO-suffixed symbols (copy_process.llvm.* etc.)
+          # and was verified against this exact Image locally.
+          curl -sL -o kptools-linux \
+            https://github.com/bmax121/KernelPatch/releases/download/0.13.9/kptools-linux
+          curl -sL -o kpimg-linux \
+            https://github.com/bmax121/KernelPatch/releases/download/0.13.9/kpimg-linux
+          chmod +x kptools-linux
+          ./kptools-linux -p -i kernel/out/arch/arm64/boot/Image \
+            -k kpimg-linux -o /tmp/Image-rooted
+          mv /tmp/Image-rooted kernel/out/arch/arm64/boot/Image
+          ./kptools-linux -l -i kernel/out/arch/arm64/boot/Image | grep -E 'patched|version'
+          ls -l kernel/out/arch/arm64/boot/Image
+
       - name: Package AnyKernel3 zip
         run: |
           git clone --depth 1 https://github.com/osm0sis/AnyKernel3.git ak3
           cp kernel/out/arch/arm64/boot/Image ak3/Image
           cp ci/anykernel.sh ak3/anykernel.sh
           cd ak3
-          zip -r9 ../miatoll-ft8756-touchfix-lto.zip * -x .git/\*
+          zip -r9 ../miatoll-ft8756-touchfix-lto-root.zip * -x .git/\*
           cd ..
-          md5sum miatoll-ft8756-touchfix-lto.zip
-          ls -l miatoll-ft8756-touchfix-lto.zip
+          md5sum miatoll-ft8756-touchfix-lto-root.zip
+          ls -l miatoll-ft8756-touchfix-lto-root.zip
 
       - name: Upload AnyKernel3 zip
         uses: actions/upload-artifact@v4
         with:
-          name: miatoll-ft8756-touchfix-lto
-          path: miatoll-ft8756-touchfix-lto.zip
+          name: miatoll-ft8756-touchfix-lto-root
+          path: miatoll-ft8756-touchfix-lto-root.zip
           if-no-files-found: error
 
       - name: Upload build log
