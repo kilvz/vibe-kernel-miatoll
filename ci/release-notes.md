@@ -15,3 +15,5 @@ Cara flash (backup Boot dulu):
 4. Kalau ada masalah, restore backup Boot dari recovery.
 
 Cek DroidSpaces setelah flash: aplikasi DroidSpaces > Settings > Requirements > Check Requirements.
+
+- Dibangun dengan clang r536225 (sama seperti kernel stock LineageOS) agar APatch bisa boot.
