@@ -2,6 +2,7 @@ Kernel LineageOS 22.2 (Android 15) untuk Redmi Note 9 Pro / miatoll (joyeuse, cu
 
 Isi varian ini:
 - Perbaikan sentuh FT8756 (layar pengganti): sentuh tidak perlu lagi dimatikan-dinyalakan tiap boot.
+- File boot.img (boot-lto.img) di release ini: boot.img siap flash (stock boot.img + kernel ini), bisa dites dulu dengan `fastboot boot boot-lto.img` tanpa flash.
 
 Catatan:
 - Varian ini hanya kernel bersih (tanpa root). Setelah flash, patch ulang boot.img dengan aplikasi APatch kalau mau root kembali.
