@@ -1,19 +1,17 @@
 # vibe-kernel-miatoll
 
 LineageOS 22.2 kernel for the Redmi Note 9 Pro (joyeuse / miatoll),
-built with ThinLTO on GitHub Actions. Stock driver (ft8756_spi,
-no touch patch).
+built with ThinLTO on GitHub Actions.
 
 ## Why this exists
 
 LineageOS 22.2 kernel for the Redmi Note 9 Pro, with APatch and
-DroidSpaces variants. The kernel uses the stock ft8756_spi touch
-driver.
+DroidSpaces variants.
 
 ## Variants — three builds
 
 All three are built from the stock LineageOS kernel (4.14.336) with
-ThinLTO, on the default ft8756_spi driver. Pick one:
+ThinLTO. Pick one:
 
 | Variant | Branch | Release | What you get |
 |---|---|---|---|
