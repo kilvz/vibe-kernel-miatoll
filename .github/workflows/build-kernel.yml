@@ -125,10 +125,18 @@ jobs:
           # Merge the APatch-compat fragment (CFI + Shadow Call Stack
           # off -- both panic the kernel once KernelPatch hooks in).
           scripts/kconfig/merge_config.sh -m -O out out/.config ../ci/apatch-compat.config
+          # APatch boot test: disable ThinLTO (see ci/no-lto.config).
+          # Our r536225 + LTO-on build still hangs at the first screen;
+          # stock (r536225, LTO on) works, so LTO codegen is the suspect.
+          scripts/kconfig/merge_config.sh -m -O out out/.config ../ci/no-lto.config
           make O=out ARCH=arm64 olddefconfig
           grep -E 'CONFIG_LTO|CONFIG_LOCALVERSION=|CONFIG_TOUCHSCREEN_FTS_SPI=' out/.config
           if grep -qE '^CONFIG_CFI_CLANG=y|^CONFIG_SHADOW_CALL_STACK=y' out/.config; then
             echo 'ERROR: CFI/SCS still enabled, APatch will not boot'
+            exit 1
+          fi
+          if grep -qE '^CONFIG_LTO_CLANG=y' out/.config; then
+            echo 'ERROR: LTO still enabled on APatch branch'
             exit 1
           fi
           echo 'CFI and SCS are off (APatch-compatible)'
