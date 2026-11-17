@@ -1,8 +1,9 @@
 # Build the miatoll (Redmi Note 9 Pro / joyeuse) kernel with the FT8756
 # touch fix, with ThinLTO ON, on GitHub Actions.
 #
-# DROIDSPACES BRANCH: this is the APatch-pre-patched variant (same as
-# the root branch) PLUS full DroidSpaces container support, per the
+# DROIDSPACES BRANCH: UNPATCHED variant PLUS full DroidSpaces
+# container support (NOT pre-patched with APatch: patch the released
+# boot.img yourself with the APatch app), per the
 # Droidspaces-OSS kernel guide for non-GKI kernels 3.18-4.19 (miatoll
 # is 4.14, non-GKI): the required config options are merged from
 # ci/droidspaces.config, and the non-GKI cgroup patch is applied.
@@ -24,7 +25,7 @@
 # from the system package). The AnyKernel3 zip is uploaded as a
 # build artifact. The stock miatoll_defconfig already enables
 # CONFIG_LTO_CLANG=y (ThinLTO), so nothing about LTO is touched.
-name: Build miatoll kernel (FT8756 touch fix, ThinLTO, APatch, DroidSpaces)
+name: Build miatoll kernel (FT8756 touch fix, ThinLTO, DroidSpaces, unpatched)
 
 on:
   workflow_dispatch:
@@ -148,27 +149,6 @@ jobs:
             DTC=/usr/bin/dtc -j"$(nproc)" 2>&1 | tee ../build.log
           ls -l out/arch/arm64/boot/Image
           file out/arch/arm64/boot/Image
-
-      - name: Patch kernel with APatch (kpimg 0.13.9)
-        run: |
-          # Pre-patch the built Image with KernelPatch so flashing
-          # this kernel keeps root (no re-patch with the APatch app
-          # needed afterwards). No custom superkey: matches a stock
-          # APatch install (Custom SuperKey OFF). kptools-linux is
-          # the x86-64 CLI; kpimg-android is the patch image blob
-          # (NOT an executable -- it is the -k input). The patch
-          # resolves LTO-suffixed symbols (copy_process.llvm.* etc.)
-          # and was verified against this exact Image locally.
-          curl -sL -o kptools-linux \
-            https://github.com/bmax121/KernelPatch/releases/download/0.13.9/kptools-linux
-          curl -sL -o kpimg-android \
-            https://github.com/bmax121/KernelPatch/releases/download/0.13.9/kpimg-android
-          chmod +x kptools-linux
-          ./kptools-linux -p -i kernel/out/arch/arm64/boot/Image \
-            -k kpimg-android -o /tmp/Image-rooted
-          mv /tmp/Image-rooted kernel/out/arch/arm64/boot/Image
-          ./kptools-linux -l -i kernel/out/arch/arm64/boot/Image | grep -E 'patched|version'
-          ls -l kernel/out/arch/arm64/boot/Image
 
       - name: Repack boot.img (stock LineageOS boot.img + this kernel)
         run: |
