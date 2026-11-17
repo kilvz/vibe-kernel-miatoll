@@ -8,11 +8,17 @@ ThinLTO on GitHub Actions.
 
 The phone has an aftermarket replacement screen with a FocalTech
 FT8756 touch chip (Huaxing, SPI). On LineageOS the touch is dead
-after every boot until the screen is toggled off/on: the first
-display-on resume is a no-op in the FTS driver, so the chip never
-gets a real reset after the panel powers on. The patch in this repo
-makes the first display-on run the full resume/reset path, restores
-the settle wait, and adds a read-path self-healing safety net.
+after every boot until the screen is toggled off/on. The replacement
+panel merges touch/display lines, so the touch IC needs a hardware
+reset after the boot-time firmware download before it will accept
+register writes. The patch in this repo schedules a delayed work
+~20 s after probe that pulses the touch reset GPIO, then runs the
+suspend→resume path, so touch comes up without a manual screen
+off/on. The firmware re-flash stays on (stopping it broke the
+screen off/on recovery too).
+
+Status: the touch fix is still being tested on-device. v6 is the
+current attempt (v5 booted but touch stayed dead).
 
 ## Variants — three builds, one patch
 
@@ -24,7 +30,6 @@ ThinLTO build (clang 19.0.0 r530567, kernel 4.14.336). Pick one:
 | **Clean** | `main` | [v1.0-lto](https://github.com/kilvz/vibe-kernel-miatoll/releases/tag/v1.0-lto) | Touch fix only. Flashing it removes the APatch kernel patch, so root is lost until the new boot.img is re-patched with the APatch app and re-flashed. |
 | **Root** | `root` | [v1.0-lto-root](https://github.com/kilvz/vibe-kernel-miatoll/releases/tag/v1.0-lto-root) | Touch fix + kernel pre-patched with APatch kpimg 0.13.9. Root survives flashing; no re-patch needed. The APatch manager app must stay installed. |
 | **DroidSpaces** | `droidspaces` | [v1.0-lto-droidspaces](https://github.com/kilvz/vibe-kernel-miatoll/releases/tag/v1.0-lto-droidspaces) | Everything in Root + full DroidSpaces container support (namespaces, cgroups, seccomp, NAT, overlayfs, user namespaces + the non-GKI cgroup patch). Two guide options could not be enabled (see changelog): CFS_BANDWIDTH (blocked by Qualcomm's SCHED_WALT) and CGROUP_NS (does not exist in this 4.14 tree). |
-| **NetHunter** | `nethunter` | [v1.0-lto-nethunter](https://github.com/kilvz/vibe-kernel-miatoll/releases/tag/v1.0-lto-nethunter) | Everything in DroidSpaces + Kali NetHunter support: HID gadget, RNDIS, Wi-Fi monitor mode + packet injection (internal qcacld-3.0 and USB adapters RTL8812AU/8814AU, rtw88, ath9k_htc, rt2800usb, rtl8187), Bluetooth Arsenal, CAN, RTL-SDR, USB serial. |
 
 ## Changelog
 
@@ -59,22 +64,6 @@ Each release page carries its own changelog:
   (Qualcomm's scheduler — the `--cpus` limit is unavailable, which
   the guide says is skipped with a warning), and `CONFIG_CGROUP_NS`
   does not exist in this 4.14 tree. Both are optional per the guide.
-- **v1.0-lto-nethunter** — everything in v1.0-lto-droidspaces, plus
-  Kali NetHunter support from the official kernel-builder 4.14 patch
-  set: mac80211 packet injection, qcacld-3.0 frame injection for the
-  internal Wi-Fi (adapted: the stock qcacld config has monitor mode
-  off, so the patch flips it on; one cosmetic blank-line hunk
-  dropped), RTL8812AU/8814AU and rtw88 USB Wi-Fi drivers, ath9k
-  naming fix, UB500 Bluetooth device id, and the `ci/nethunter.config`
-  options (HID core, RNDIS gadget, mac80211, USB Wi-Fi drivers,
-  Bluetooth RFCOMM/HIDP/BNEP, CAN, RTL-SDR, USB serial). The
-  rtl8188eus patch is skipped: 4 of its 115 hunks fail (this tree's
-  rtl8xxxu is newer and already has RTL8188E support). All drivers
-  built in (`=y`), so the zip stays kernel-only. The AnyKernel3
-  packaging is our own miatoll-specific script; petros402/AnyKernel3
-  (a NetHunter AK3 installer for this exact device/ROM) was checked
-  as reference, but its anykernel.sh is the stock osm0sis example,
-  not device-customised.
 
 ## Files
 
@@ -88,8 +77,6 @@ Each release page carries its own changelog:
   branch only).
 - `ci/droidspaces-02-cgroup-prefix.patch` — DroidSpaces non-GKI
   cgroup patch (droidspaces branch only).
-- `ci/nethunter-*.patch` + `ci/nethunter.config` — Kali NetHunter
-  4.14 patches and config fragment (nethunter branch only).
 
 ## Build
 
@@ -126,18 +113,8 @@ Check Requirements. The must-have and recommended items should pass,
 except the two known gaps (CFS_BANDWIDTH and CGROUP_NS, see the
 changelog above).
 
-## NetHunter (nethunter variant only)
-
-After flashing, install the Kali NetHunter app and the NetHunter
-chroot from the NetHunter store (store.nethunter.com). The kernel
-provides HID gadget (`/dev/hidg0`), monitor mode + injection on the
-internal Wi-Fi and on supported USB adapters, Bluetooth, CAN and
-RTL-SDR. Note: the NetHunter app still needs root (APatch is
-pre-patched in this variant) and the chroot download, which are not
-part of this zip.
-
 ## Status
 
-**Not yet verified on a phone** — the first-boot touch test is still
-pending for all three variants. If touch still needs a toggle on
-first boot, report it and the patch gets revised.
+Touch fix v6 is still being tested on-device (touch stays dead after
+boot so far). This repo stays on the default ft8756_spi driver.
+DroidSpaces + APatch are confirmed working on-device.
