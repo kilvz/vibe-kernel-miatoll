@@ -12,7 +12,7 @@
 +static void fts_boot_revive_work(struct work_struct *work)
 +{
 +	struct fts_ts_data *ts_data = container_of(work, struct fts_ts_data,
-+						    boot_revive_work);
++						    boot_revive_work.work);
 +
 +	FTS_INFO("boot revive: emulate suspend->resume");
 +	fts_ts_suspend(ts_data->dev);
