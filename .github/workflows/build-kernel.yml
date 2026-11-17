@@ -27,6 +27,9 @@ jobs:
   build:
     runs-on: ubuntu-24.04
     timeout-minutes: 300
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}
+      cancel-in-progress: true
     permissions:
       contents: write
     steps:
@@ -107,6 +110,31 @@ jobs:
           ls -l out/arch/arm64/boot/Image
           file out/arch/arm64/boot/Image
 
+      - name: Repack boot.img (stock LineageOS boot.img + this kernel)
+        run: |
+          # Build a ready-to-flash boot.img from the stock LineageOS
+          # boot.img (same ROM as installed: 2026-11-16 miatoll
+          # nightly) with only the kernel swapped, so the release
+          # carries both the AnyKernel3 zip and a boot.img.
+          # magiskboot comes from the Magisk APK (the AK3 tools'
+          # magiskboot is ARM-only and cannot run on the runner).
+          # Never pipe magiskboot output to head (SIGPIPE kills it).
+          mkdir -p repack && cd repack
+          curl -sL -o stock-boot.img \
+            https://mirrorbits.lineageos.org/full/miatoll/20261116/boot.img
+          echo "f4135d2ef8d5e28dabef7a3c84506016  stock-boot.img" | md5sum -c -
+          curl -sL -o magisk.apk \
+            https://github.com/topjohnwu/Magisk/releases/download/v31.1/Magisk-v31.1.apk
+          unzip -p magisk.apk lib/x86_64/libmagiskboot.so > magiskboot
+          chmod +x magiskboot
+          ./magiskboot unpack stock-boot.img > magiskboot-unpack.log 2>&1
+          cp ../kernel/out/arch/arm64/boot/Image kernel
+          ./magiskboot repack stock-boot.img boot-lto.img > magiskboot-repack.log 2>&1
+          mv boot-lto.img ..
+          cd ..
+          ls -l boot-lto.img
+          md5sum boot-lto.img
+
       - name: Package AnyKernel3 zip
         run: |
           git clone --depth 1 https://github.com/osm0sis/AnyKernel3.git ak3
@@ -125,6 +153,13 @@ jobs:
           path: miatoll-ft8756-touchfix-lto.zip
           if-no-files-found: error
 
+      - name: Upload boot.img
+        uses: actions/upload-artifact@v4
+        with:
+          name: boot-lto
+          path: boot-lto.img
+          if-no-files-found: error
+
       - name: Upload build log
         if: always()
         uses: actions/upload-artifact@v4
@@ -140,8 +175,9 @@ jobs:
           TAG="v1.0-lto"
           TITLE="v1.0-lto — FT8756 touch fix, ThinLTO"
           ZIP="miatoll-ft8756-touchfix-lto.zip"
+          IMG="boot-lto.img"
           if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" "$ZIP" --clobber
+            gh release upload "$TAG" "$ZIP" "$IMG" --clobber
           else
-            gh release create "$TAG" "$ZIP" --title "$TITLE" --notes-file ci/release-notes.md
+            gh release create "$TAG" "$ZIP" "$IMG" --title "$TITLE" --notes-file ci/release-notes.md
           fi
