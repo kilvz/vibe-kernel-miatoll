@@ -17,7 +17,7 @@ ThinLTO. Pick one:
 |---|---|---|---|
 | **Clean** | `main` | [v1.0-lto](https://github.com/kilvz/vibe-kernel-miatoll/releases/tag/v1.0-lto) | Stock kernel only (clang r530567). No root. Flashing removes the APatch patch, so root is lost until the new boot.img is re-patched with the APatch app. |
 | **Root** | `root` | [v1.0-lto-root](https://github.com/kilvz/vibe-kernel-miatoll/releases/tag/v1.0-lto-root) | Stock kernel, built with clang r536225 (same as stock LineageOS) and CFI off. NOT pre-patched with APatch — patch the released boot.img yourself with the APatch app. |
-| **DroidSpaces** | `droidspaces` | [v1.0-lto-droidspaces](https://github.com/kilvz/vibe-kernel-miatoll/releases/tag/v1.0-lto-droidspaces) | Stock kernel + full DroidSpaces container support (namespaces, cgroups, seccomp, NAT, overlayfs, user namespaces + the non-GKI cgroup patch) + APatch pre-patched (kpimg-android 0.13.9). Root survives flashing; no re-patch needed. Two guide options could not be enabled: CFS_BANDWIDTH (blocked by Qualcomm's SCHED_WALT) and CGROUP_NS (does not exist in this 4.14 tree). DroidSpaces + APatch confirmed working on-device. |
+| **DroidSpaces** | `droidspaces` | [v1.0-lto-droidspaces](https://github.com/kilvz/vibe-kernel-miatoll/releases/tag/v1.0-lto-droidspaces) | Stock kernel + full DroidSpaces container support (namespaces, cgroups, seccomp, NAT, overlayfs, user namespaces + the non-GKI cgroup patch) + APatch pre-patched (kpimg-android 0.13.9). Root survives flashing; no re-patch needed. One guide option could not be enabled: CFS_BANDWIDTH (blocked by Qualcomm's SCHED_WALT). DroidSpaces + APatch confirmed working on-device. |
 
 ## Changelog
 
@@ -34,9 +34,11 @@ ThinLTO. Pick one:
   APatch pre-patched with kpimg-android 0.13.9 (the Android
   KernelPatch image — kpimg-linux, the Linux variant, hangs at
   the first logo). DroidSpaces + APatch confirmed working
-  on-device. Two options could not be enabled: `CONFIG_CFS_BANDWIDTH`
-  (blocked by `CONFIG_SCHED_WALT`) and `CONFIG_CGROUP_NS`
-  (does not exist in 4.14). Both are optional per the guide.
+  on-device. One option could not be enabled: `CONFIG_CFS_BANDWIDTH`
+  (blocked by `CONFIG_SCHED_WALT`). It is optional per the guide.
+  `CONFIG_CGROUP_NS` is enabled — the Kconfig entry was missing
+  from this 4.14 tree, so `ci/droidspaces-03-cgroup-ns-kconfig.patch`
+  adds it.
 
 ## Files
 
@@ -48,6 +50,8 @@ ThinLTO. Pick one:
   branch only).
 - `ci/droidspaces-02-cgroup-prefix.patch` — DroidSpaces non-GKI
   cgroup patch (droidspaces branch only).
+- `ci/droidspaces-03-cgroup-ns-kconfig.patch` — adds the missing
+  `CONFIG_CGROUP_NS` Kconfig entry (droidspaces branch only).
 - `ci/apatch-compat.config` — CFI off (root and droidspaces
   branches only).
 
