@@ -17,7 +17,7 @@ ThinLTO. Pick one:
 |---|---|---|---|
 | **Clean** | `main` | [v1.0-lto](https://github.com/kilvz/vibe-kernel-miatoll/releases/tag/v1.0-lto) | Stock kernel only. Flashing it removes the APatch kernel patch, so root is lost until the new boot.img is re-patched with the APatch app and re-flashed. |
 | **Root** | `root` | [v1.0-lto-root](https://github.com/kilvz/vibe-kernel-miatoll/releases/tag/v1.0-lto-root) | Stock kernel, built with clang r536225 (same as stock LineageOS) and CFI off. NOT pre-patched with APatch — patch the released boot.img yourself with the APatch app. |
-| **DroidSpaces** | `droidspaces` | [v1.0-lto-droidspaces](https://github.com/kilvz/vibe-kernel-miatoll/releases/tag/v1.0-lto-droidspaces) | Everything in Root + full DroidSpaces container support (namespaces, cgroups, seccomp, NAT, overlayfs, user namespaces + the non-GKI cgroup patch) + APatch pre-patched (kpimg-android 0.13.9). Root survives flashing; no re-patch needed. Two guide options could not be enabled (see changelog): CFS_BANDWIDTH (blocked by Qualcomm's SCHED_WALT) and CGROUP_NS (does not exist in this 4.14 tree). |
+| **DroidSpaces** | `droidspaces` | [v1.0-lto-droidspaces](https://github.com/kilvz/vibe-kernel-miatoll/releases/tag/v1.0-lto-droidspaces) | Everything in Root + full DroidSpaces container support (namespaces, cgroups, seccomp, NAT, overlayfs, user namespaces + the non-GKI cgroup patch) + APatch pre-patched (kpimg-android 0.13.9). Root survives flashing; no re-patch needed. One guide option could not be enabled (see changelog): CFS_BANDWIDTH (blocked by Qualcomm's SCHED_WALT). |
 
 ## Changelog
 
@@ -39,16 +39,17 @@ Each release page carries its own changelog:
   (`ci/droidspaces-02-cgroup-prefix.patch`). The guide's patch 01
   (xt_qtaguid panic fix) is intentionally skipped:
   `net/netfilter/xt_qtaguid.c` does not exist in this tree (the
-  driver was removed), so the panic it fixes cannot occur. Two
-  options in the fragment cannot take effect on 4.14
-  (`CONFIG_FW_LOADER_COMPRESS`, added in 5.3; `CONFIG_CGROUP_NET_PRIO`,
-  removed in 4.5) — the build warns about them and ignores them.
-  Two more options could not be enabled at all, verified from the
-  config extracted from the built Image (19 of 21 key options `=y`):
-  `CONFIG_CFS_BANDWIDTH` is blocked by `CONFIG_SCHED_WALT`
-  (Qualcomm's scheduler — the `--cpus` limit is unavailable, which
-  the guide says is skipped with a warning), and `CONFIG_CGROUP_NS`
-  does not exist in this 4.14 tree. Both are optional per the guide.
+  driver was removed), so the panic it fixes cannot occur. One
+  option in the fragment cannot take effect on 4.14
+  (`CONFIG_FW_LOADER_COMPRESS`, added in 5.3) — the build warns
+  about it and ignores it. One more option could not be enabled
+  at all, verified from the config extracted from the built Image
+  (20 of 21 key options `=y`): `CONFIG_CFS_BANDWIDTH` is blocked
+  by `CONFIG_SCHED_WALT` (Qualcomm's scheduler — the `--cpus`
+  limit is unavailable). It is optional per the guide.
+  `CONFIG_CGROUP_NS` is enabled — the Kconfig entry was missing
+  from this 4.14 tree, so `ci/droidspaces-03-cgroup-ns-kconfig.patch`
+  adds it.
 
 ## Files
 
@@ -60,6 +61,8 @@ Each release page carries its own changelog:
   branch only).
 - `ci/droidspaces-02-cgroup-prefix.patch` — DroidSpaces non-GKI
   cgroup patch (droidspaces branch only).
+- `ci/droidspaces-03-cgroup-ns-kconfig.patch` — adds the missing
+  `CONFIG_CGROUP_NS` Kconfig entry (droidspaces branch only).
 
 ## Build
 
@@ -93,7 +96,7 @@ Revert: restore the Boot backup from recovery.
 
 After flashing, open the DroidSpaces app → Settings → Requirements →
 Check Requirements. The must-have and recommended items should pass,
-except the two known gaps (CFS_BANDWIDTH and CGROUP_NS, see the
+except the one known gap (CFS_BANDWIDTH, see the
 changelog above).
 
 ## Status
