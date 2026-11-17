@@ -17,3 +17,6 @@ Cara flash (backup Boot dulu):
 Cek DroidSpaces setelah flash: aplikasi DroidSpaces > Settings > Requirements > Check Requirements.
 
 - Dibangun dengan clang r536225 (sama seperti kernel stock LineageOS) agar APatch bisa boot.
+
+- Touch fix v4: FTS_AUTO_UPGRADE_EN 0 — stop the boot-time firmware re-flash that kills the replacement panel IC.
+- APatch now uses kpimg-android (was kpimg-linux): the Android KernelPatch variant, same as the APatch app uses.
