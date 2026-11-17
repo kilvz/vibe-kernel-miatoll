@@ -83,7 +83,7 @@ jobs:
           git apply ../ci/droidspaces-02-cgroup-prefix.patch
           git status --short | head -20
 
-      - name: Fetch prebuilt clang-r530567 (AOSP android-16.0.0_r1)
+      - name: Fetch prebuilt clang-r536225 (LineageOS 22.2 toolchain, AOSP android-16.0.0_r1)
         run: |
           # The LineageOS clang repo
           # (android_prebuilts_clang_kernel_linux-x86_clang-r530567)
@@ -100,8 +100,8 @@ jobs:
           git clone --depth 1 --branch android-16.0.0_r1 \
             https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86 \
             clang-r530567
-          test -x ./clang-r530567/clang-r530567/bin/clang
-          ./clang-r530567/clang-r530567/bin/clang --version | head -1
+          test -x ./clang-r530567/clang-r536225/bin/clang
+          ./clang-r530567/clang-r536225/bin/clang --version | head -1
 
       - name: Fetch GCC 4.9 cross (aarch64-linux-android)
         run: |
@@ -140,7 +140,7 @@ jobs:
         run: |
           cd kernel
           export ARCH=arm64
-          export PATH="$GITHUB_WORKSPACE/clang-r530567/clang-r530567/bin:$GITHUB_WORKSPACE/gcc/bin:$PATH"
+          export PATH="$GITHUB_WORKSPACE/clang-r530567/clang-r536225/bin:$GITHUB_WORKSPACE/gcc/bin:$PATH"
           export CROSS_COMPILE=aarch64-linux-android-
           export CLANG_TRIPLE=aarch64-linux-gnu-
           make O=out CC=clang LLVM_IAS=1 LD=ld.lld AR=llvm-ar NM=llvm-nm \
