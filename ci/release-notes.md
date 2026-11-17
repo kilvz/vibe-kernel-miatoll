@@ -12,3 +12,5 @@ Cara flash (backup Boot dulu):
 2. Flash zip ini.
 3. Reboot, cek sentuh langsung.
 4. Kalau ada masalah, restore backup Boot dari recovery.
+
+- Dibangun dengan clang r536225 (sama seperti kernel stock LineageOS) agar APatch bisa boot.
