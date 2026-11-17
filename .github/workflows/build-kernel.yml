@@ -125,18 +125,10 @@ jobs:
           # Merge the APatch-compat fragment (CFI + Shadow Call Stack
           # off -- both panic the kernel once KernelPatch hooks in).
           scripts/kconfig/merge_config.sh -m -O out out/.config ../ci/apatch-compat.config
-          # APatch boot test: disable ThinLTO (see ci/no-lto.config).
-          # Our r536225 + LTO-on build still hangs at the first screen;
-          # stock (r536225, LTO on) works, so LTO codegen is the suspect.
-          scripts/kconfig/merge_config.sh -m -O out out/.config ../ci/no-lto.config
           make O=out ARCH=arm64 olddefconfig
           grep -E 'CONFIG_LTO|CONFIG_LOCALVERSION=|CONFIG_TOUCHSCREEN_FTS_SPI=' out/.config
           if grep -qE '^CONFIG_CFI_CLANG=y|^CONFIG_SHADOW_CALL_STACK=y' out/.config; then
             echo 'ERROR: CFI/SCS still enabled, APatch will not boot'
-            exit 1
-          fi
-          if grep -qE '^CONFIG_LTO_CLANG=y' out/.config; then
-            echo 'ERROR: LTO still enabled on APatch branch'
             exit 1
           fi
           echo 'CFI and SCS are off (APatch-compatible)'
@@ -163,17 +155,17 @@ jobs:
           # this kernel keeps root (no re-patch with the APatch app
           # needed afterwards). No custom superkey: matches a stock
           # APatch install (Custom SuperKey OFF). kptools-linux is
-          # the x86-64 CLI; kpimg-linux is the patch image blob
+          # the x86-64 CLI; kpimg-android is the patch image blob
           # (NOT an executable -- it is the -k input). The patch
           # resolves LTO-suffixed symbols (copy_process.llvm.* etc.)
           # and was verified against this exact Image locally.
           curl -sL -o kptools-linux \
             https://github.com/bmax121/KernelPatch/releases/download/0.13.9/kptools-linux
-          curl -sL -o kpimg-linux \
-            https://github.com/bmax121/KernelPatch/releases/download/0.13.9/kpimg-linux
+          curl -sL -o kpimg-android \
+            https://github.com/bmax121/KernelPatch/releases/download/0.13.9/kpimg-android
           chmod +x kptools-linux
           ./kptools-linux -p -i kernel/out/arch/arm64/boot/Image \
-            -k kpimg-linux -o /tmp/Image-rooted
+            -k kpimg-android -o /tmp/Image-rooted
           mv /tmp/Image-rooted kernel/out/arch/arm64/boot/Image
           ./kptools-linux -l -i kernel/out/arch/arm64/boot/Image | grep -E 'patched|version'
           ls -l kernel/out/arch/arm64/boot/Image
