@@ -1,50 +1,46 @@
 # vibe-kernel-miatoll
 
 LineageOS 22.2 kernel for the Redmi Note 9 Pro (joyeuse / miatoll),
-with the FT8756 touch fix for the replacement screen, built with
-ThinLTO on GitHub Actions.
+built with ThinLTO on GitHub Actions. Stock driver (ft8756_spi,
+no touch patch).
 
 ## Why this exists
 
 The phone has an aftermarket replacement screen with a FocalTech
 FT8756 touch chip (Huaxing, SPI). On LineageOS the touch is dead
-after every boot until the screen is toggled off/on. The replacement
-panel merges touch/display lines, so the touch IC needs a hardware
-reset after the boot-time firmware download before it will accept
-register writes. The patch in this repo schedules a delayed work
-~20 s after probe that pulses the touch reset GPIO, then runs the
-suspend→resume path, so touch comes up without a manual screen
-off/on. The firmware re-flash stays on (stopping it broke the
-screen off/on recovery too).
+after every boot until the screen is toggled off/on. Six touch-fix
+attempts (v1–v6, reset pulse + suspend→resume) and a switch to the
+focaltech_touch driver were all tried and none of them fixed it,
+so the touch fix was removed from this repo. The kernel now uses
+the stock ft8756_spi driver with no touch patch. The repo exists
+for the APatch and DroidSpaces variants below.
 
-Status: the touch fix is still being tested on-device. v6 is the
-current attempt (v5 booted but touch stayed dead).
+## Variants — three builds
 
-## Variants — three builds, one patch
-
-All three are built from the same touch-fix patch and the same
-ThinLTO build (clang 19.0.0 r530567, kernel 4.14.336). Pick one:
+All three are built from the stock LineageOS kernel (4.14.336) with
+ThinLTO, on the default ft8756_spi driver. Pick one:
 
 | Variant | Branch | Release | What you get |
 |---|---|---|---|
-| **Clean** | `main` | [v1.0-lto](https://github.com/kilvz/vibe-kernel-miatoll/releases/tag/v1.0-lto) | Touch fix only. Flashing it removes the APatch kernel patch, so root is lost until the new boot.img is re-patched with the APatch app and re-flashed. |
-| **Root** | `root` | [v1.0-lto-root](https://github.com/kilvz/vibe-kernel-miatoll/releases/tag/v1.0-lto-root) | Touch fix + kernel pre-patched with APatch kpimg 0.13.9. Root survives flashing; no re-patch needed. The APatch manager app must stay installed. |
-| **DroidSpaces** | `droidspaces` | [v1.0-lto-droidspaces](https://github.com/kilvz/vibe-kernel-miatoll/releases/tag/v1.0-lto-droidspaces) | Everything in Root + full DroidSpaces container support (namespaces, cgroups, seccomp, NAT, overlayfs, user namespaces + the non-GKI cgroup patch). Two guide options could not be enabled (see changelog): CFS_BANDWIDTH (blocked by Qualcomm's SCHED_WALT) and CGROUP_NS (does not exist in this 4.14 tree). |
+| **Clean** | `main` | [v1.0-lto](https://github.com/kilvz/vibe-kernel-miatoll/releases/tag/v1.0-lto) | Stock kernel only. Flashing it removes the APatch kernel patch, so root is lost until the new boot.img is re-patched with the APatch app and re-flashed. |
+| **Root** | `root` | [v1.0-lto-root](https://github.com/kilvz/vibe-kernel-miatoll/releases/tag/v1.0-lto-root) | Stock kernel, built with clang r536225 (same as stock LineageOS) and CFI off. NOT pre-patched with APatch — patch the released boot.img yourself with the APatch app. |
+| **DroidSpaces** | `droidspaces` | [v1.0-lto-droidspaces](https://github.com/kilvz/vibe-kernel-miatoll/releases/tag/v1.0-lto-droidspaces) | Everything in Root + full DroidSpaces container support (namespaces, cgroups, seccomp, NAT, overlayfs, user namespaces + the non-GKI cgroup patch) + APatch pre-patched (kpimg-android 0.13.9). Root survives flashing; no re-patch needed. Two guide options could not be enabled (see changelog): CFS_BANDWIDTH (blocked by Qualcomm's SCHED_WALT) and CGROUP_NS (does not exist in this 4.14 tree). |
 
 ## Changelog
 
 Each release page carries its own changelog:
 
-- **v1.0-lto** — the base build: FT8756 touch fix (probe sets
-  `suspended=true` so the first display-on runs the full resume,
-  in-cell reset + `fts_wait_tp_to_valid()` settle restored, read-path
-  `fts_tp_state_recovery()` safety net), ThinLTO ON, stock
-  `vendor/xiaomi/miatoll_defconfig`.
-- **v1.0-lto-root** — everything in v1.0-lto, plus the built Image
-  pre-patched with KernelPatch kpimg 0.13.9 (verified `patched=true`,
-  kpimg `0xd09`). No custom superkey. Zip
-  `miatoll-ft8756-touchfix-lto-root.zip`, 21,984,545 bytes,
-  md5 `2cb4fcc239ce3c220696ce583531fb2e`.
+- **Touch fix removed** — the FT8756 touch fix (v1–v6) and the
+  focaltech_touch driver switch were tried and did not fix touch,
+  so both were removed. The kernel now uses the stock ft8756_spi
+  driver with no touch patch.
+
+- **v1.0-lto** — the base build: stock kernel, ThinLTO ON, stock
+  `vendor/xiaomi/miatoll_defconfig`, clang r530567.
+- **v1.0-lto-root** — everything in v1.0-lto, built with clang
+  r536225 (stock LineageOS toolchain) + CFI off, for APatch
+  compatibility. NOT pre-patched: patch the released boot.img with
+  the APatch app.
 - **v1.0-lto-droidspaces** — everything in v1.0-lto-root, plus the
   DroidSpaces kernel support from the Droidspaces-OSS non-GKI guide
   (kernels 3.18–4.19; miatoll is 4.14): the required options merged
@@ -67,8 +63,6 @@ Each release page carries its own changelog:
 
 ## Files
 
-- `ft8756-touch-fix.patch` — the source patch (self-contained,
-  includes the firmware include files the driver needs to compile).
 - `.github/workflows/build-kernel.yml` — the CI build (ThinLTO ON).
   Each branch builds its own variant; the workflow triggers on push
   to its branch and on manual dispatch.
@@ -82,11 +76,10 @@ Each release page carries its own changelog:
 
 Push to a branch, or run the workflow manually (Actions → Run
 workflow, pick the branch). The workflow clones the LineageOS kernel
-(lineage-22.2 branch tip), applies the touch-fix patch (plus the
-DroidSpaces patch and config on the droidspaces branch, plus the
-APatch pre-patch on the root and droidspaces branches), builds with
-the stock `miatoll_defconfig` (ThinLTO already on), and uploads the
-AnyKernel3 zip as an artifact.
+(lineage-22.2 branch tip), applies the DroidSpaces patch and config
+on the droidspaces branch (plus the APatch pre-patch on the
+droidspaces branch only), builds with the stock `miatoll_defconfig`
+(ThinLTO already on), and uploads the AnyKernel3 zip as an artifact.
 
 The ThinLTO final link needs ~16 GB RAM, which is why the build
 runs on GitHub (a standard runner) instead of a small VM.
@@ -94,14 +87,15 @@ runs on GitHub (a standard runner) instead of a small VM.
 ## Flash
 
 Back up the Boot partition in recovery first. Flash the zip from
-recovery (it replaces only the kernel Image), reboot, and touch
-should work on the first boot with no screen toggle.
+recovery (it replaces only the kernel Image), then reboot.
 
 - **Clean (v1.0-lto):** root is lost after flashing. Dump the new
   boot.img from recovery (`adb shell dd if=/dev/block/bootdevice/by-name/boot
   of=/sdcard/boot-fixed.img`), patch it with the APatch app, and
   `fastboot flash boot` it to get root back.
-- **Root / DroidSpaces (v1.0-lto-root, v1.0-lto-droidspaces):** root
+- **Root (v1.0-lto-root):** NOT pre-patched. Patch the new boot.img
+  with the APatch app and `fastboot flash boot` it to get root back.
+- **DroidSpaces (v1.0-lto-droidspaces):** APatch pre-patched, root
   survives flashing. Keep the APatch manager app installed.
 
 Revert: restore the Boot backup from recovery.
@@ -115,6 +109,6 @@ changelog above).
 
 ## Status
 
-Touch fix v6 is still being tested on-device (touch stays dead after
-boot so far). This repo stays on the default ft8756_spi driver.
+The touch fix was removed (v1–v6 and the focaltech_touch switch did
+not fix touch). This repo stays on the default ft8756_spi driver.
 DroidSpaces + APatch are confirmed working on-device.
