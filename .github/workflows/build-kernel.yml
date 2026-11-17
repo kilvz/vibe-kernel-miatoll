@@ -1,5 +1,5 @@
-# Build the miatoll (Redmi Note 9 Pro / joyeuse) kernel with the FT8756
-# touch fix, with ThinLTO ON, on GitHub Actions.
+# Build the miatoll (Redmi Note 9 Pro / joyeuse) kernel with
+# ThinLTO ON, on GitHub Actions.
 #
 # DROIDSPACES BRANCH: DroidSpaces variant PLUS APatch pre-patched
 # (kpimg-android 0.13.9, the Android KernelPatch image — the Linux
@@ -16,23 +16,22 @@
 # Why CI: the ThinLTO final link needs more RAM than the 6 GB build VM
 # (OOM-killed, Error 137). A standard GitHub-hosted runner has 16 GB.
 #
-# Layout: the repo holds ONLY this workflow + the patch + scripts.
+# Layout: the repo holds ONLY this workflow + scripts.
 # The workflow clones the LineageOS kernel (lineage-22.2, branch tip --
 # the tarball commit b539bd1 the local build used is NOT in the public
-# repo's history, so it cannot be checked out), applies the patch,
+# repo's history, so it cannot be checked out), uses
 # prebuilt clang-r530567 + GCC 4.9, and builds with the same flags as
 # the local build.sh (O=out, CC=clang, LD=ld.lld, LLVM_IAS=1, DTC
 # from the system package). The AnyKernel3 zip is uploaded as a
 # build artifact. The stock miatoll_defconfig already enables
 # CONFIG_LTO_CLANG=y (ThinLTO), so nothing about LTO is touched.
-name: Build miatoll kernel (FT8756 touch fix, ThinLTO, DroidSpaces, APatch)
+name: Build miatoll kernel (ThinLTO, DroidSpaces, APatch)
 
 on:
   workflow_dispatch:
   push:
     branches: [droidspaces]
     paths:
-      - 'ft8756-touch-fix.patch'
       - 'ci/**'
 
 jobs:
@@ -65,13 +64,6 @@ jobs:
             https://github.com/LineageOS/android_kernel_xiaomi_sm6250.git kernel
           cd kernel
           git rev-parse HEAD
-
-      - name: Apply FT8756 touch-fix patch
-        run: |
-          cd kernel
-          git apply --check ../ft8756-touch-fix.patch
-          git apply ../ft8756-touch-fix.patch
-          git status --short | head -20
 
       - name: Apply DroidSpaces non-GKI patch
         run: |
@@ -206,16 +198,16 @@ jobs:
           cp kernel/out/arch/arm64/boot/Image ak3/Image
           cp ci/anykernel.sh ak3/anykernel.sh
           cd ak3
-          zip -r9 ../miatoll-ft8756-touchfix-lto-droidspaces.zip * -x .git/\*
+          zip -r9 ../miatoll-lto-droidspaces.zip * -x .git/\*
           cd ..
-          md5sum miatoll-ft8756-touchfix-lto-droidspaces.zip
-          ls -l miatoll-ft8756-touchfix-lto-droidspaces.zip
+          md5sum miatoll-lto-droidspaces.zip
+          ls -l miatoll-lto-droidspaces.zip
 
       - name: Upload AnyKernel3 zip
         uses: actions/upload-artifact@v4
         with:
-          name: miatoll-ft8756-touchfix-lto-droidspaces
-          path: miatoll-ft8756-touchfix-lto-droidspaces.zip
+          name: miatoll-lto-droidspaces
+          path: miatoll-lto-droidspaces.zip
           if-no-files-found: error
 
       - name: Upload boot.img
@@ -238,8 +230,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           TAG="v1.0-lto-droidspaces"
-          TITLE="v1.0-lto-droidspaces — FT8756 touch fix, ThinLTO, APatch, DroidSpaces"
-          ZIP="miatoll-ft8756-touchfix-lto-droidspaces.zip"
+          TITLE="v1.0-lto-droidspaces — ThinLTO, APatch, DroidSpaces"
+          ZIP="miatoll-lto-droidspaces.zip"
           IMG="boot-lto-droidspaces.img"
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" "$ZIP" "$IMG" --clobber
