@@ -1,4 +1,4 @@
-Kernel LineageOS 22.2 (Android 15) untuk Redmi Note 9 Pro / miatoll (joyeuse, curtana, excalibur, gram), kernel 4.14.336, ThinLTO, clang 19.0.1 r536225 (sama seperti kernel stock LineageOS), CFI off. Driver sentuh stock (ft8756_spi, tanpa patch) — perbaikan sentuh v1–v6 dan driver focaltech_touch sudah dicoba dan tidak memperbaiki sentuh, jadi dihapus dari repo ini.
+Kernel LineageOS 22.2 (Android 15) untuk Redmi Note 9 Pro / miatoll (joyeuse, curtana, excalibur, gram), kernel 4.14.336, ThinLTO, clang 19.0.1 r536225 (sama seperti kernel stock LineageOS), CFI off..
 
 Isi varian ini (sudah termasuk v1.0-lto):
 - APatch sudah dipatch ke kernel (kpimg-android 0.13.9) — root tetap ada setelah flash, aplikasi APatch harus tetap terpasang. Tidak perlu patch ulang boot.img.
