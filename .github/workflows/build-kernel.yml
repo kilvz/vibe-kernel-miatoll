@@ -79,9 +79,19 @@ jobs:
           # handling (cgroup_add_file gains the subsys-prefixed symlink).
           # Patch 01 (xt_qtaguid panic fix) is NOT applied: its file
           # net/netfilter/xt_qtaguid.c does not exist in this tree.
+          # Patch 03: add the missing CONFIG_CGROUP_NS Kconfig symbol
+          # (the cgroup namespace code is already in the tree and
+          # compiled — namespace.c is obj-y, CLONE_NEWCGROUP is wired
+          # in fork/nsproxy — only the Kconfig switch was missing, so
+          # ci/droidspaces.config's CONFIG_CGROUP_NS=y was silently
+          # dropped). CFS_BANDWIDTH is NOT enabled: it needs
+          # SCHED_WALT off, a scheduler tradeoff not worth the
+          # Docker --cpus limit.
           cd kernel
           git apply --check ../ci/droidspaces-02-cgroup-prefix.patch
           git apply ../ci/droidspaces-02-cgroup-prefix.patch
+          git apply --check ../ci/droidspaces-03-cgroup-ns-kconfig.patch
+          git apply ../ci/droidspaces-03-cgroup-ns-kconfig.patch
           git status --short | head -20
 
       - name: Fetch prebuilt clang-r536225 (LineageOS 22.2 toolchain, AOSP android-16.0.0_r1)
