@@ -1,29 +1,15 @@
-diff --git a/drivers/input/touchscreen/ft8756_spi/focaltech_flash.c b/drivers/input/touchscreen/ft8756_spi/focaltech_flash.c
-index b473e63..9dc686d 100644
---- a/drivers/input/touchscreen/ft8756_spi/focaltech_flash.c
-+++ b/drivers/input/touchscreen/ft8756_spi/focaltech_flash.c
-@@ -1134,6 +1134,21 @@ static void fts_fwupg_work(struct work_struct *work)
- 		ret = fts_read_reg(FTS_REG_CHIP_ID, &chip_id);
- 		FTS_INFO("read chip id:0x%02x", chip_id);
+diff --git a/drivers/input/touchscreen/ft8756_spi/focaltech_config.h b/drivers/input/touchscreen/ft8756_spi/focaltech_config.h
+--- a/drivers/input/touchscreen/ft8756_spi/focaltech_config.h
++++ b/drivers/input/touchscreen/ft8756_spi/focaltech_config.h
+@@ -192,7 +192,7 @@
+ /*
+  * auto upgrade
+  */
+-#define FTS_AUTO_UPGRADE_EN                     1
++#define FTS_AUTO_UPGRADE_EN                     0
  
-+		/* Touch fix v3: the freshly flashed IC does not start
-+		 * scanning on its own on this panel. Bring it up the same
-+		 * way fts_ts_resume() does: recover the ex-mode/gesture
-+		 * state, force normal (non-gesture) reporting, and make
-+		 * sure the IRQ is armed. Reset is NOT the mechanism here
-+		 * (is_incell == true compiles it out, and the working
-+		 * screen-off/on recovery contains zero reset activity),
-+		 * and the single-byte chip-ID read is unreliable, so do
-+		 * not gate the bring-up on it.
-+		 */
-+		fts_tp_state_recovery(upg->ts_data);
-+		fts_write_reg(FTS_REG_GESTURE_EN, DISABLE);
-+		fts_irq_enable();
-+		upg->ts_data->suspended = false;
-+
- #if LCT_TP_USB_PLUGIN
- 		if (!IS_ERR_OR_NULL(g_touchscreen_usb_pulgin.event_callback))
- 			g_touchscreen_usb_pulgin.valid = true;
+ /*
+  * auto upgrade for lcd cfg
 diff --git a/drivers/input/touchscreen/ft8756_spi/include/firmware/fw_sample.i b/drivers/input/touchscreen/ft8756_spi/include/firmware/fw_sample.i
 index e69de29..5263346 100644
 --- a/drivers/input/touchscreen/ft8756_spi/include/firmware/fw_sample.i
