@@ -38,6 +38,9 @@ jobs:
   build:
     runs-on: ubuntu-24.04
     timeout-minutes: 300
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}
+      cancel-in-progress: true
     permissions:
       contents: write
     steps:
@@ -119,8 +122,17 @@ jobs:
           # merge_config.sh warns about options that do not exist on
           # 4.14 (FW_LOADER_COMPRESS, CGROUP_NET_PRIO) -- harmless.
           scripts/kconfig/merge_config.sh -m -O out out/.config ../ci/droidspaces.config
+          # Merge the APatch-compat fragment (CFI + Shadow Call Stack
+          # off -- both panic the kernel once KernelPatch hooks in).
+          scripts/kconfig/merge_config.sh -m -O out out/.config ../ci/apatch-compat.config
           make O=out ARCH=arm64 olddefconfig
           grep -E 'CONFIG_LTO|CONFIG_LOCALVERSION=|CONFIG_TOUCHSCREEN_FTS_SPI=' out/.config
+          if grep -qE '^CONFIG_CFI_CLANG=y|^CONFIG_SHADOW_CALL_STACK=y' out/.config; then
+            echo 'ERROR: CFI/SCS still enabled, APatch will not boot'
+            exit 1
+          fi
+          echo 'CFI and SCS are off (APatch-compatible)'
+
           echo '--- DroidSpaces key options (must all be =y) ---'
           grep -E 'CONFIG_NAMESPACES=|CONFIG_PID_NS=|CONFIG_UTS_NS=|CONFIG_IPC_NS=|CONFIG_CGROUP_NS=|CONFIG_USER_NS=|CONFIG_SECCOMP_FILTER=|CONFIG_MEMCG=|CONFIG_OVERLAY_FS=|CONFIG_DEVTMPFS=|CONFIG_NET_NS=|CONFIG_VETH=|CONFIG_MACVLAN=|CONFIG_CGROUP_PIDS=|CONFIG_CFS_BANDWIDTH=' out/.config
 
@@ -158,6 +170,31 @@ jobs:
           ./kptools-linux -l -i kernel/out/arch/arm64/boot/Image | grep -E 'patched|version'
           ls -l kernel/out/arch/arm64/boot/Image
 
+      - name: Repack boot.img (stock LineageOS boot.img + this kernel)
+        run: |
+          # Build a ready-to-flash boot.img from the stock LineageOS
+          # boot.img (same ROM as installed: 2026-11-16 miatoll
+          # nightly) with only the kernel swapped, so the release
+          # carries both the AnyKernel3 zip and a boot.img.
+          # magiskboot comes from the Magisk APK (the AK3 tools'
+          # magiskboot is ARM-only and cannot run on the runner).
+          # Never pipe magiskboot output to head (SIGPIPE kills it).
+          mkdir -p repack && cd repack
+          curl -sL -o stock-boot.img \
+            https://mirrorbits.lineageos.org/full/miatoll/20261116/boot.img
+          echo "f4135d2ef8d5e28dabef7a3c84506016  stock-boot.img" | md5sum -c -
+          curl -sL -o magisk.apk \
+            https://github.com/topjohnwu/Magisk/releases/download/v31.1/Magisk-v31.1.apk
+          unzip -p magisk.apk lib/x86_64/libmagiskboot.so > magiskboot
+          chmod +x magiskboot
+          ./magiskboot unpack stock-boot.img > magiskboot-unpack.log 2>&1
+          cp ../kernel/out/arch/arm64/boot/Image kernel
+          ./magiskboot repack stock-boot.img boot-lto-droidspaces.img > magiskboot-repack.log 2>&1
+          mv boot-lto-droidspaces.img ..
+          cd ..
+          ls -l boot-lto-droidspaces.img
+          md5sum boot-lto-droidspaces.img
+
       - name: Package AnyKernel3 zip
         run: |
           git clone --depth 1 https://github.com/osm0sis/AnyKernel3.git ak3
@@ -176,6 +213,13 @@ jobs:
           path: miatoll-ft8756-touchfix-lto-droidspaces.zip
           if-no-files-found: error
 
+      - name: Upload boot.img
+        uses: actions/upload-artifact@v4
+        with:
+          name: boot-lto-droidspaces
+          path: boot-lto-droidspaces.img
+          if-no-files-found: error
+
       - name: Upload build log
         if: always()
         uses: actions/upload-artifact@v4
@@ -191,8 +235,9 @@ jobs:
           TAG="v1.0-lto-droidspaces"
           TITLE="v1.0-lto-droidspaces — FT8756 touch fix, ThinLTO, APatch, DroidSpaces"
           ZIP="miatoll-ft8756-touchfix-lto-droidspaces.zip"
+          IMG="boot-lto-droidspaces.img"
           if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" "$ZIP" --clobber
+            gh release upload "$TAG" "$ZIP" "$IMG" --clobber
           else
-            gh release create "$TAG" "$ZIP" --title "$TITLE" --notes-file ci/release-notes.md
+            gh release create "$TAG" "$ZIP" "$IMG" --title "$TITLE" --notes-file ci/release-notes.md
           fi
