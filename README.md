@@ -6,14 +6,9 @@ no touch patch).
 
 ## Why this exists
 
-The phone has an aftermarket replacement screen with a FocalTech
-FT8756 touch chip (Huaxing, SPI). On LineageOS the touch is dead
-after every boot until the screen is toggled off/on. Six touch-fix
-attempts (v1–v6, reset pulse + suspend→resume) and a switch to the
-focaltech_touch driver were all tried and none of them fixed it,
-so the touch fix was removed from this repo. The kernel now uses
-the stock ft8756_spi driver with no touch patch. The repo exists
-for the APatch and DroidSpaces variants below.
+LineageOS 22.2 kernel for the Redmi Note 9 Pro, with APatch and
+DroidSpaces variants. The kernel uses the stock ft8756_spi touch
+driver.
 
 ## Variants — three builds
 
@@ -30,10 +25,6 @@ ThinLTO, on the default ft8756_spi driver. Pick one:
 
 Each release page carries its own changelog:
 
-- **Touch fix removed** — the FT8756 touch fix (v1–v6) and the
-  focaltech_touch driver switch were tried and did not fix touch,
-  so both were removed. The kernel now uses the stock ft8756_spi
-  driver with no touch patch.
 
 - **v1.0-lto** — the base build: stock kernel, ThinLTO ON, stock
   `vendor/xiaomi/miatoll_defconfig`, clang r530567.
@@ -109,6 +100,4 @@ changelog above).
 
 ## Status
 
-The touch fix was removed (v1–v6 and the focaltech_touch switch did
-not fix touch). This repo stays on the default ft8756_spi driver.
 DroidSpaces + APatch are confirmed working on-device.
