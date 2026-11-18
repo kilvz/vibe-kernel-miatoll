@@ -2,7 +2,7 @@ Kernel LineageOS 22.2 (Android 15) untuk Redmi Note 9 Pro / miatoll (joyeuse, cu
 
 Isi varian ini (sudah termasuk v1.0-lto):
 - APatch sudah dipatch ke kernel (kpimg-android 0.13.9) — root tetap ada setelah flash, aplikasi APatch harus tetap terpasang. Tidak perlu patch ulang boot.img.
-- DroidSpaces: opsi kernel untuk container (19/21 opsi utama aktif; CFS_BANDWIDTH tidak ada karena SCHED_WALT, CGROUP_NS tidak ada di kernel 4.14 — keduanya opsional, limit --cpus tidak tersedia).
+- DroidSpaces: opsi kernel untuk container (20/21 opsi utama aktif; hanya CFS_BANDWIDTH yang tidak ada karena SCHED_WALT — opsional, limit --cpus tidak tersedia; CGROUP_NS aktif via patch 03).
 - File boot.img (boot-lto-droidspaces.img) di release ini: boot.img siap flash (stock boot.img + kernel ini), bisa dites dulu dengan `fastboot boot boot-lto-droidspaces.img` tanpa flash.
 
 Catatan:
